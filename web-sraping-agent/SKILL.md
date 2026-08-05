@@ -20,6 +20,9 @@ failover when one provider's quota is exhausted.
 ```
 web-search-skill/
 ├── SKILL.md                  ← this file
+├── data/                     ← persisted run data (gitignored)
+│   └── <query-slug>/         ← one folder per research prompt
+│       └── <provider>_<timestamp>.json
 └── scripts/
     ├── tavily_search.py      ← Tavily search + scrape
     └── exa_search.py         ← Exa.ai search + scrape
@@ -108,6 +111,26 @@ Both scripts emit **one JSON object** to stdout:
   ]
 }
 ```
+
+## Persistence (data/ folder)
+
+Every run also writes the same JSON payload to disk under the project's `data/`
+folder, so results can be inspected or re-processed later:
+
+```
+data/<query-slug>/<provider>_<timestamp>.json
+```
+
+- **Run folder** is named after the research prompt (slugified query, e.g.
+  `fire truck seller` → `data/fire-truck-seller/`). Scrape-only runs use the
+  first URL's domain instead.
+- **Filenames** are unique per run: `tavily_20260805-085100.json`.
+- **All runs are saved**, including failures — unsuccessful runs are marked by
+  their `status` field (`missing_key`, `bad_input`, `quota_exhausted`, etc.).
+- The folder defaults to `<project>/data` (relative to the script) and can be
+  overridden with `--data-dir /path/to/folder`.
+- Stdout JSON and exit codes are unchanged; saving is additive.
+- `data/` is gitignored.
 
 ## Notes for Future Configuration
 - Rate-limit retry logic (backoff/jitter) — to be added in scripts
