@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Ubuntu Test (CalculiX + Gmsh + build123d)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Check out repository
@@ -23,7 +23,6 @@ jobs:
             gmsh \
             python3-gmsh \
             libglu1-mesa \
-            libgl1-mesa-glx \
             libgl1
 
       - name: Set up Python 3.11
