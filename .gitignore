@@ -26,3 +26,9 @@ bin/
 *.cvg
 *.12d
 *.nam
+
+# Local simulation artifacts (generated dynamically at runtime)
+artifacts/
+
+# Local developer / scratch scripts (not part of CI)
+scripts/

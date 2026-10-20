@@ -38,7 +38,7 @@ GitHub Actions CI Workflow:
 Triggers:
 Direct push to master and main.
 pull_request against master and main.
-Runner: ubuntu-latest.
+Runner: ubuntu-22.04
 System Installs (APT): calculix-ccx, gmsh, python3-gmsh, and OpenGL libraries (mirroring your machine).
-Python Setup: Sets up Python 3.11, caches pip, and installs requirements.txt.
+Python Setup: Sets up Python 3.10, caches pip, and installs requirements.txt.
 Execution: Runs the test suite and provides detailed CLI logs.
