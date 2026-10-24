@@ -156,3 +156,10 @@ The server exposes tools over **Streamable HTTP** (`/mcp`) on port `8000`:
 * **Phase 3**:
   * Additional topological families (shafts, plates, brackets).
   * Multi-user directory partitioning (`artifacts/users/{user_id}/`).
+
+---
+
+## 9. License
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See the [LICENSE](file:///home/ubuntu/Personal%20Projects/Materials-MCP/LICENSE) file for complete terms.
+
