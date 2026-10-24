@@ -20,7 +20,6 @@ build123d (v0.12.0) installed and bound cleanly
 
 
 
-
 20/10/26
 Building CI workflow (Github Actions) for testing current build reliability 
 
@@ -42,3 +41,12 @@ Runner: ubuntu-22.04
 System Installs (APT): calculix-ccx, gmsh, python3-gmsh, and OpenGL libraries (mirroring your machine).
 Python Setup: Sets up Python 3.10, caches pip, and installs requirements.txt.
 Execution: Runs the test suite and provides detailed CLI logs.
+
+workspace build: 
+artifacts : files created dy Calculix & Gmsh & build123
+scripts : files used to run the generation of models and mesh 
+src : file path to indicate where calculiX and gmsh should save the file to 
+
+24/10/26
+Added fullWorkflow_sample.py to show the complete flow of the document generation 
+went through the codebase with agent to understand future dev planning with updated INTENT.md and new MCPIntent.md 
