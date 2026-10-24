@@ -1,0 +1,34 @@
+# Virtual environment & Python cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local SDK downloads or binaries
+gmsh-*-sdk/
+bin/
+*.so
+
+# build123d CAD outputs
+*.step
+*.stp
+*.brep
+
+# Gmsh mesh outputs
+*.msh
+*.geo
+
+# CalculiX solver input decks & results
+*.inp
+*.dat
+*.frd
+*.sta
+*.cvg
+*.12d
+*.nam
+
+# Local simulation artifacts (generated dynamically at runtime)
+artifacts/
+
+# Local developer / scratch scripts (not part of CI)
+scripts/
