@@ -47,6 +47,25 @@ artifacts : files created dy Calculix & Gmsh & build123
 scripts : files used to run the generation of models and mesh 
 src : file path to indicate where calculiX and gmsh should save the file to 
 
+
+
+
 24/10/26
 Added fullWorkflow_sample.py to show the complete flow of the document generation 
-went through the codebase with agent to understand future dev planning with updated INTENT.md and new MCPIntent.md 
+went through the codebase with agent to understand future dev planning with updated INTENT.md and new MCPIntent.md
+added LICENSE file with AGPL-3.0 license 
+
+
+
+
+28/10/26
+Implemented headless STEP file visualizer:
+  src/preview/__init__.py   — package init, exports render_step_preview
+  src/preview/renderer.py   — pure-function headless renderer (build123d tessellation + matplotlib Agg)
+    Features: isometric ortho view, semantic face colouring (6 faces), face label annotations,
+    dark theme, tolerance-fallback tessellation, figure leak prevention (plt.close in finally)
+  tests/test_preview.py     — 8 unit tests: happy path, metadata override, label toggle,
+    missing STEP, empty STEP, figure leak x2, custom DPI
+  scripts/fullWorkflow_sample.py — wired in preview render after STEP export (Stage 1)
+All 15 tests pass (4 existing + 3 storage + 8 new preview) in 1.8s
+preview.png confirmed: 169KB isometric PNG generated from cantilever beam geometry
