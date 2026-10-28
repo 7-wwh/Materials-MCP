@@ -2,11 +2,17 @@
 Test suite for src/preview/renderer.py
 
 Tests cover:
-  1. Happy path: Box STEP → preview.png is written, non-empty, valid image.
+  1. Happy path (default ortho6): composite 2x3 preview.png + 6 individual view PNGs.
   2. Semantic face metadata: passing face dicts overrides label positions.
-  3. Failure path — missing STEP file: returns False, no exception raised.
-  4. Failure path — empty STEP file: returns False, no exception raised.
-  5. Memory safety: no matplotlib figures left open after each call.
+  3. Disabling face labels (label_faces=False).
+  4. Missing STEP file: returns False, no exception raised.
+  5. Empty STEP file: returns False, no exception raised.
+  6. Memory safety: no matplotlib figures left open after multi-view renders.
+  7. No figure leak on failure paths.
+  8. Custom DPI support.
+  9. Quad view mode (view_mode="quad").
+  10. Single view mode (view_mode="single").
+  11. Disabling individual view export (export_individual=False).
 """
 
 import os
@@ -24,7 +30,7 @@ def _open_figure_count() -> int:
 
 
 class TestStepPreviewRenderer(unittest.TestCase):
-    """Unit tests for the headless STEP → PNG renderer."""
+    """Unit tests for the headless multi-view STEP → PNG renderer."""
 
     @classmethod
     def setUpClass(cls):
@@ -47,10 +53,12 @@ class TestStepPreviewRenderer(unittest.TestCase):
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
-    def _fresh_output(self) -> Path:
-        """Return a unique output path in the temp directory."""
+    def _fresh_run_dir(self) -> Path:
+        """Create a dedicated unique subfolder for a run to test sibling file exports."""
         import uuid
-        return self.tmp_dir / f"preview_{uuid.uuid4().hex[:8]}.png"
+        run_dir = self.tmp_dir / f"run_{uuid.uuid4().hex[:8]}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        return run_dir
 
     def _is_valid_png(self, path: Path) -> bool:
         """Check the PNG magic bytes (first 8 bytes)."""
@@ -63,25 +71,34 @@ class TestStepPreviewRenderer(unittest.TestCase):
 
     # ── Test cases ───────────────────────────────────────────────────────────
 
-    def test_01_happy_path_creates_png(self):
+    def test_01_happy_path_creates_composite_and_individual_pngs(self):
         """
-        render_step_preview with a valid STEP file must return True and
-        write a non-empty PNG to the specified output path.
+        render_step_preview with default settings must create the composite
+        preview.png (2x3 orthographic sheet) as well as the 6 individual view PNGs.
         """
         from src.preview.renderer import render_step_preview
 
-        output = self._fresh_output()
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
         result = render_step_preview(self.step_path, output)
 
         self.assertTrue(result, "render_step_preview should return True on success.")
         self.assertTrue(output.exists(), "preview.png was not created.")
         self.assertGreater(output.stat().st_size, 0, "preview.png is empty.")
-        self.assertTrue(self._is_valid_png(output), "Output file is not a valid PNG.")
+        self.assertTrue(self._is_valid_png(output), "preview.png is not a valid PNG.")
+
+        # Check that individual view files were also exported
+        expected_views = ["iso", "top", "bottom", "front", "right", "back"]
+        for vid in expected_views:
+            ind_path = run_dir / f"preview_{vid}.png"
+            self.assertTrue(ind_path.exists(), f"Individual view {ind_path.name} was not created.")
+            self.assertGreater(ind_path.stat().st_size, 0, f"Individual view {ind_path.name} is empty.")
+            self.assertTrue(self._is_valid_png(ind_path), f"{ind_path.name} is not a valid PNG.")
 
     def test_02_with_semantic_face_metadata(self):
         """
         Passing a semantic_faces list from metadata.json must still produce
-        a valid PNG without raising.
+        valid images without raising.
         """
         from src.preview.renderer import render_step_preview
 
@@ -102,7 +119,8 @@ class TestStepPreviewRenderer(unittest.TestCase):
             },
         ]
 
-        output = self._fresh_output()
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
         result = render_step_preview(
             self.step_path, output, semantic_faces=semantic_faces, label_faces=True
         )
@@ -112,11 +130,12 @@ class TestStepPreviewRenderer(unittest.TestCase):
 
     def test_03_label_faces_false(self):
         """
-        Disabling face labels must still produce a valid PNG.
+        Disabling face labels must still produce valid PNGs.
         """
         from src.preview.renderer import render_step_preview
 
-        output = self._fresh_output()
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
         result = render_step_preview(self.step_path, output, label_faces=False)
 
         self.assertTrue(result)
@@ -130,7 +149,8 @@ class TestStepPreviewRenderer(unittest.TestCase):
         from src.preview.renderer import render_step_preview
 
         missing = self.tmp_dir / "nonexistent_geometry.step"
-        output = self._fresh_output()
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
 
         result = render_step_preview(missing, output)
 
@@ -146,7 +166,8 @@ class TestStepPreviewRenderer(unittest.TestCase):
 
         empty_step = self.tmp_dir / "empty.step"
         empty_step.write_bytes(b"")
-        output = self._fresh_output()
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
 
         result = render_step_preview(empty_step, output)
 
@@ -154,17 +175,18 @@ class TestStepPreviewRenderer(unittest.TestCase):
 
     def test_06_no_matplotlib_figure_leak(self):
         """
-        Every call to render_step_preview must close its figure handle.
-        The number of open figures must be identical before and after.
+        Every call to render_step_preview must close all figure handles (both
+        composite and individual). The open figure count must be identical before and after.
         """
         from src.preview.renderer import render_step_preview
 
         before = _open_figure_count()
 
-        # Two back-to-back renders
+        # Two back-to-back renders with full 6-view and individual exports
         for _ in range(2):
-            output = self._fresh_output()
-            render_step_preview(self.step_path, output)
+            run_dir = self._fresh_run_dir()
+            output = run_dir / "preview.png"
+            render_step_preview(self.step_path, output, export_individual=True)
 
         after = _open_figure_count()
         self.assertEqual(
@@ -181,22 +203,77 @@ class TestStepPreviewRenderer(unittest.TestCase):
 
         before = _open_figure_count()
         missing = self.tmp_dir / "ghost.step"
-        render_step_preview(missing, self._fresh_output())
+        run_dir = self._fresh_run_dir()
+        render_step_preview(missing, run_dir / "preview.png")
         after = _open_figure_count()
 
         self.assertEqual(before, after, "Figure leak on failure path.")
 
     def test_08_custom_dpi(self):
         """
-        Specifying a non-default DPI must still produce a valid PNG.
+        Specifying a non-default DPI must still produce valid PNGs.
         """
         from src.preview.renderer import render_step_preview
 
-        output = self._fresh_output()
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
         result = render_step_preview(self.step_path, output, dpi=72)
 
         self.assertTrue(result)
         self.assertTrue(self._is_valid_png(output))
+
+    def test_09_view_mode_quad(self):
+        """
+        view_mode="quad" must generate a valid 2x2 quad sheet.
+        """
+        from src.preview.renderer import render_step_preview
+
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
+        result = render_step_preview(
+            self.step_path, output, view_mode="quad", export_individual=False
+        )
+
+        self.assertTrue(result)
+        self.assertTrue(self._is_valid_png(output))
+
+    def test_10_view_mode_single(self):
+        """
+        view_mode="single" must generate a single isometric preview image.
+        """
+        from src.preview.renderer import render_step_preview
+
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
+        result = render_step_preview(
+            self.step_path, output, view_mode="single", export_individual=False
+        )
+
+        self.assertTrue(result)
+        self.assertTrue(self._is_valid_png(output))
+
+    def test_11_export_individual_false(self):
+        """
+        When export_individual is False, only preview.png must be created,
+        and no preview_<view>.png sibling files.
+        """
+        from src.preview.renderer import render_step_preview
+
+        run_dir = self._fresh_run_dir()
+        output = run_dir / "preview.png"
+        result = render_step_preview(
+            self.step_path, output, export_individual=False
+        )
+
+        self.assertTrue(result)
+        self.assertTrue(output.exists())
+
+        # Sibling files should NOT exist
+        for vid in ["iso", "top", "bottom", "front", "right", "back"]:
+            self.assertFalse(
+                (run_dir / f"preview_{vid}.png").exists(),
+                f"Sibling preview_{vid}.png should not exist when export_individual=False",
+            )
 
 
 if __name__ == "__main__":

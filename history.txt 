@@ -69,3 +69,23 @@ Implemented headless STEP file visualizer:
   scripts/fullWorkflow_sample.py — wired in preview render after STEP export (Stage 1)
 All 15 tests pass (4 existing + 3 storage + 8 new preview) in 1.8s
 preview.png confirmed: 169KB isometric PNG generated from cantilever beam geometry
+
+28/10/26 (Multi-View CAD Preview Upgrade)
+Expanded CAD preview to full multi-view orthographic inspection:
+  src/preview/renderer.py:
+    - 6-View 2x3 Orthographic Inspection Sheet (preview.png default):
+        Top (XY), Isometric 3D, Bottom (XY), Front (XZ), Right (YZ), Back (XZ)
+    - 4-View 2x2 Quad Sheet mode (view_mode="quad")
+    - 1-View Isometric mode (view_mode="single")
+    - Standalone image exports (export_individual=True):
+        preview_iso.png, preview_top.png, preview_bottom.png, preview_front.png, preview_right.png, preview_back.png
+    - Pure single-pass tessellation (OCC geometry triangulated once, reused across all views)
+    - Perpendicular projection axis cleanup (hides collapsed 3rd axis ticks on orthographic views)
+    - Full memory safety: tracks all figure handles and releases in finally block
+  tests/test_preview.py:
+    - Expanded test suite to 11 unit tests covering 2x3 composite, 6 individual exports,
+      quad sheet, single view, metadata overrides, label toggles, failure paths, and figure leaks
+    - All 18 tests pass cleanly in 10.6s
+  scripts/fullWorkflow_sample.py:
+    - Updated execution summary to report multi-view sheet + individual view exports
+
